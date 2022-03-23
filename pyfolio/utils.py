@@ -28,8 +28,8 @@ import empyrical.utils
 from . import pos
 from . import txn
 
-APPROX_BDAYS_PER_MONTH = 21
-APPROX_BDAYS_PER_YEAR = 252
+APPROX_BDAYS_PER_MONTH = 30 # adapt for crypto trading 21
+APPROX_BDAYS_PER_YEAR = 365 # adapt for crypto trading, 252
 
 MONTHS_PER_YEAR = 12
 WEEKS_PER_YEAR = 52
@@ -354,6 +354,14 @@ def estimate_intraday(returns, positions, transactions, EOD_hour=23):
     txn_val['exposure'] = txn_val.abs().sum(axis=1)
     condition = (txn_val['exposure'] == txn_val.groupby(
         pd.Grouper(freq='24H'))['exposure'].transform(max))
+    # bug fix: condition might have duplicates per-day
+    # condition=condition.reset_index()
+    # max_mark = condition.groupby( by=condition["date"].dt.date )["exposure"].idxmax().values
+    # condition.loc[:,"exposure"] = False
+    # condition.loc[max_mark, "exposure"] = True
+    # #condition.groupby("exposure").count()
+    # condition.set_index("date", inplace=True)
+
     txn_val = txn_val[condition].drop('exposure', axis=1)
 
     # Compute cash delta
