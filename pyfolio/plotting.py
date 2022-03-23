@@ -22,6 +22,7 @@ import empyrical as ep
 import matplotlib
 import matplotlib.patches as patches
 import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
 import numpy as np
 import pandas as pd
 import pytz
@@ -437,13 +438,14 @@ def plot_drawdown_periods(returns, top=10, ax=None, **kwargs):
     colors = sns.cubehelix_palette(len(df_drawdowns))[::-1]
     for i, (peak, recovery) in df_drawdowns[
             ['Peak date', 'Recovery date']].iterrows():
-        if pd.isnull(recovery):
-            recovery = returns.index[-1]
-        ax.fill_between((peak, recovery),
-                        lim[0],
-                        lim[1],
-                        alpha=.4,
-                        color=colors[i])
+        if not pd.isna(peak) and not pd.isna(recovery):
+            if pd.isnull(recovery):
+                recovery = returns.index[-1]
+            ax.fill_between((peak, recovery),
+                            lim[0],
+                            lim[1],
+                            alpha=.4,
+                            color=colors[i])
     ax.set_ylim(lim)
     ax.set_title('Top %i drawdown periods' % top)
     ax.set_ylabel('Cumulative returns')
@@ -1594,7 +1596,7 @@ def plot_daily_volume(returns, transactions, ax=None, **kwargs):
     return ax
 
 
-def plot_txn_time_hist(transactions, bin_minutes=5, tz='America/New_York',
+def plot_txn_time_hist(transactions, bin_minutes=30, tz='UTC',
                        ax=None, **kwargs):
     """
     Plots a histogram of transaction times, binning the times into
@@ -1626,11 +1628,10 @@ def plot_txn_time_hist(transactions, bin_minutes=5, tz='America/New_York',
         ax = plt.gca()
 
     txn_time = transactions.copy()
-
     txn_time.index = txn_time.index.tz_convert(pytz.timezone(tz))
     txn_time.index = txn_time.index.map(lambda x: x.hour * 60 + x.minute)
     txn_time['trade_value'] = (txn_time.amount * txn_time.price).abs()
-    txn_time = txn_time.groupby(level=0).sum().reindex(index=range(570, 961))
+    txn_time = txn_time.groupby(level=0).sum().reindex(index=range(0, 1440)) # Crypto Trading 24h
     txn_time.index = (txn_time.index / bin_minutes).astype(int) * bin_minutes
     txn_time = txn_time.groupby(level=0).sum()
 
@@ -1643,9 +1644,10 @@ def plot_txn_time_hist(transactions, bin_minutes=5, tz='America/New_York',
 
     ax.bar(txn_time.index, txn_time.trade_value, width=bin_minutes, **kwargs)
 
-    ax.set_xlim(570, 960)
-    ax.set_xticks(txn_time.index[::int(30 / bin_minutes)])
-    ax.set_xticklabels(txn_time.time_str[::int(30 / bin_minutes)])
+    ax.set_xlim(0, 1440)
+
+    ax.set_xticks(txn_time.index[::int(60/bin_minutes)])
+    ax.set_xticklabels(txn_time.time_str[::int(60/bin_minutes)],  rotation='vertical')
     ax.set_title('Transaction time distribution')
     ax.set_ylabel('Proportion')
     ax.set_xlabel('')
@@ -1770,7 +1772,7 @@ def plot_round_trip_lifetimes(round_trips, disp_amount=16, lsize=18, ax=None):
                     linewidth=lsize, solid_capstyle='butt')
 
     ax.set_yticks(range(disp_amount))
-    ax.set_yticklabels([utils.format_asset(s) for s in sample])
+    # ax.set_yticklabels([utils.format_asset(s) for s in sample])
 
     ax.set_ylim((-0.5, min(len(sample), disp_amount) - 0.5))
     blue = patches.Rectangle([0, 0], 1, 1, color='b', label='Long')
